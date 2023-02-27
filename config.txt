@@ -1,0 +1,3 @@
+#ctk:
+appearance_mode: dark #options are system, dark, light
+default_color_theme: green #options are blue, dark-blue, green
