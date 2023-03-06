@@ -12,7 +12,7 @@ def clear():
     system("cls")
 
 def install(package):
-    """Uses pip to install a package. This will error if"""
+    """Uses pip to install a package. This will error if 'pip' is not on %PATH%."""
     check_call(["pip", "install", package])
 
 def __parse_config_file(config_file: str) -> None:
