@@ -1,25 +1,21 @@
+"""Go4Schools API Communication using username and password. By Gabriel Lancaster-West"""
+
+
 import pickle
 from abc import ABC
 from datetime import datetime, timedelta, date
 from getpass import getpass
 from json import loads
-from os import system
 from os.path import exists
-from subprocess import check_call
+from useful_functions import *
 
-def clear():
-    """Clears the console."""
-    system("cls")
 
-def install(package):
-    """Uses pip to install a package. This will error if 'pip' is not on %PATH%."""
-    check_call(["pip", "install", package])
-
-def __parse_config_file(config_file: str) -> None:
-    """Parses a config file, which is basically a dictionary without the braces and commas which ignores comments (declared with #)."""
+def __parse_config_file(config_file_txt: str) -> None:
+    """Parses a config file, which is basically a dictionary without the braces and commas which ignores comments (
+    declared with #). """
     prefix = "config"
     config_dict = {}
-    with open(config_file) as f:
+    with open(config_file_txt) as f:
         for line in f:
             # ignore comments and blank lines
             if line.strip() == '' or line.strip().startswith('#'):
@@ -37,17 +33,18 @@ def __parse_config_file(config_file: str) -> None:
         try:
             ctk.set_appearance_mode(config_dict["appearance_mode"])
         except Exception:
-            raise ValueError(f"[{prefix}] appearance_mode in {config_file} is invalid.")
+            raise ValueError(f"[{prefix}] appearance_mode in {config_file_txt} is invalid.")
     else:
-        print(f"[{prefix}] appearance_mode setting not found in '{config_file}'.")
+        print(f"[{prefix}] appearance_mode setting not found in '{config_file_txt}'.")
 
     if config_dict["appearance_mode"]:
         try:
             ctk.set_default_color_theme(config_dict["default_color_theme"])
         except Exception:
-            raise ValueError(f"[{prefix}] default_color_theme in {config_file} is invalid.")
+            raise ValueError(f"[{prefix}] default_color_theme in {config_file_txt} is invalid.")
     else:
-        print(f"[{prefix}] default_color_theme setting not found in '{config_file}'.")
+        print(f"[{prefix}] default_color_theme setting not found in '{config_file_txt}'.")
+
 
 # imports
 try:
@@ -61,7 +58,8 @@ try:
 except ImportError:
     install("customtkinter")
     import customtkinter as ctk
-__parse_config_file("config.txt")
+config_file = "config.txt"
+__parse_config_file(config_file)
 
 try:
     from googleapiclient.discovery import build
@@ -75,10 +73,15 @@ except ImportError:
     from google_auth_oauthlib.flow import InstalledAppFlow
     from google.auth.transport.requests import Request
 
-class Go4Schools_Session(object):
+
+class go4schools_session(object):
+    """
+    Go4Schools session using username and password, only currently works for students.
+    """
     def __init__(self, username: str, password: str):
-        """Takes in a username and password as parameters and logs into the Go4Schools website using the Requests library.
-        It extracts the student ID and bearer token from the HTML response and stores them as attributes of the class."""
+        """Takes in a username and password as parameters and logs into the Go4Schools website using the Requests 
+        library. It extracts the student ID and bearer token from the HTML response and stores them as attributes of 
+        the class. """
         self.prefix = "Go4Schools"
         login_url = "https://www.go4schools.com/sso/account/login?site=Student"
         session = requests.Session()
@@ -95,7 +98,8 @@ class Go4Schools_Session(object):
         # Extract the student ID and bearer token from the HTML.
         if "login" in response.url:
             raise Exception(
-                "Incorrect Username or Password. Please use Go4Schools_Session.verify_login_details() before declaring the class.")
+                "Incorrect Username or Password. Please use Go4Schools_Session.verify_login_details() before "
+                "declaring the class.") 
 
         now = datetime.now()
         if now.month >= 9:
@@ -131,7 +135,7 @@ class Go4Schools_Session(object):
             return True  # valid
 
     @staticmethod
-    def StartEnd_OfWeek() -> tuple:
+    def start_end_of_week() -> tuple:
         """Returns start & end of current week."""
         today = datetime.now()
         start_of_week = today - timedelta(days=today.weekday())
@@ -142,9 +146,9 @@ class Go4Schools_Session(object):
         return start_of_week_str, end_of_week_str
 
     @staticmethod
-    def get_dates():
-        """Prompts the user to enter a start and end date in the format "DD/MM/YYYY" and returns them as formatted strings.
-        For use in sending requests to Go4Schools."""
+    def get_dates_with_console_prompt():
+        """Prompts the user to enter a start and end date in the format "DD/MM/YYYY" and returns them as formatted 
+        strings. For use in sending requests to Go4Schools. """
         print("Enter start date in the format DD/MM/YYYY:")
         start_date = input()
         start_date = datetime.strptime(start_date, "%d/%m/%Y").date()
@@ -158,10 +162,12 @@ class Go4Schools_Session(object):
 
         return start_str, end_str
 
-    def GetTimetable(self, startDate: str = None, endDate: str = None) -> list[dict]:
-        """Retrieves the student's timetable for a given start and end date (formatted as "Sat, 1 Jan 2000 00:00:00 GMT") from the Go4Schools API. If no dates are specified, it uses the StartEnd_OfWeek method to get the start and end dates of the current week. The method returns a list of dictionaries representing the lessons."""
-        if not (startDate or endDate):
-            startDate, endDate = self.StartEnd_OfWeek()
+    def get_timetable(self, start_date: str = None, end_date: str = None) -> list[dict]:
+        """Retrieves the student's timetable for a given start and end date (formatted as "Sat, 1 Jan 2000 00:00:00 
+        GMT") from the Go4Schools API. If no dates are specified, it uses the StartEnd_OfWeek method to get the start 
+        and end dates of the current week. The method returns a list of dictionaries representing the lessons. """
+        if not (start_date or end_date):
+            start_date, end_date = self.start_end_of_week()
 
         print(f"{self.prefix}: Fetching timetable...")
 
@@ -170,11 +176,12 @@ class Go4Schools_Session(object):
             "origin": "https://www.go4schools.com",
             "referer": "https://www.go4schools.com/"
         }
-        baseURL = "https://api.go4schools.com/web/stars/v1/timetable/student/academic-years/"
-        TimetableURL = baseURL + str(
-            datetime.now().year) + "/school-id/" + self.SchoolID + "/user-type/1/student-id/" + self.StudentID + "/from-date/"
-        TimetableURL += str(startDate) + "/to-date/" + str(endDate) + "?caching=true"
-        response = requests.get(TimetableURL, headers=headers)
+        base_url = "https://api.go4schools.com/web/stars/v1/timetable/student/academic-years/"
+        timetable_url = base_url + str(
+            datetime.now().year) + "/school-id/" + self.SchoolID + "/user-type/1/student-id/" + self.StudentID +\
+            "/from-date/ "
+        timetable_url += str(start_date) + "/to-date/" + str(end_date) + "?caching=true"
+        response = requests.get(timetable_url, headers=headers)
         print(f"{self.prefix}: Status code from 'api.go4schools.com':", response.status_code)
         lessons = loads(response.text)["student_timetable"]
 
@@ -187,8 +194,9 @@ class Go4Schools_Session(object):
 
         return lessons
 
-    def GetAttendance(self) -> str:
-        """Retrieves the student's attendance data from the Go4Schools API. It returns the attendance data as a string."""
+    def get_attendance(self) -> str:
+        """Retrieves the student's attendance data from the Go4Schools API. It returns the attendance data as a 
+        string. """
         print(f"{self.prefix}: Fetching attendance...")
 
         headers = {
@@ -196,14 +204,14 @@ class Go4Schools_Session(object):
             "origin": "https://www.go4schools.com",
             "referer": "https://www.go4schools.com/"
         }
-        baseURL = "https://api.go4schools.com/web/stars/v1/attendance/session/academic-years/"
-        AttendanceURL = baseURL + str(
+        base_url = "https://api.go4schools.com/web/stars/v1/attendance/session/academic-years/"
+        AttendanceURL = base_url + str(
             datetime.now().year) + "/school-id/" + self.SchoolID + "/user-type/1/year-groups/12/student-id/" + self.StudentID + "?caching=false&includeSettings=true"
         response = requests.get(AttendanceURL, headers=headers)
         print("Status code:", response.status_code)
         return response.text
 
-    def GetGrades(self) -> str:
+    def get_grades(self) -> str:
         """Gets grades using the Go4Schools API"""
         URL = "https://api.go4schools.com/web/stars/v1/attainment/student-grades/academic-years/" + self.academic_year + "/school-id/" + self.SchoolID + "/user-type/1/year-group/12/student-id/" \
               + self.StudentID + "?caching=false&includeSettings=false"
@@ -216,7 +224,7 @@ class Go4Schools_Session(object):
         print(f"{self.prefix}: Status code:", response.status_code)
         return response.text
 
-    def GetHomework(self) -> list[dict]:
+    def get_homework(self) -> list[dict]:
         """Gets homework using the Go4Schools API"""
         headers = {
             "authorization": self.bearer,
@@ -237,7 +245,8 @@ class Go4Schools_Session(object):
                 futureTasks.append(task)
         return futureTasks
 
-class TimetableTab(ctk.CTkTabview, ABC):
+
+class timetable_tab(ctk.CTkTabview, ABC):
     def __init__(self, root, data: list[dict], **kwargs):
 
         super().__init__(root, **kwargs)
@@ -278,14 +287,16 @@ class TimetableTab(ctk.CTkTabview, ABC):
                 label_text = entry["start_time"] + " - " + entry['end_time'] + "\n"
                 label_text += "______________\n_________\n___________\n"
                 label = ctk.CTkLabel(self.tab(weekday), text=label_text)
-                label.configure(text_color="#9B9FB5") #grey
+                label.configure(text_color="#9B9FB5")  # grey
                 label.pack()
 
-class HomeworkTab(ctk.CTkTabview, ABC):
+
+class homework_tab(ctk.CTkTabview, ABC):
     def __init__(self, root: ctk.CTk, homeworkData: list[dict], **kwargs):
         super().__init__(root, **kwargs)
 
         def sort_key(task: dict):
+            """Function for sorting dates to display homework in order they're due."""
             if task["due_date"] == "Today":
                 return date.today()
             elif task["due_date"] == "Tomorrow":
@@ -301,11 +312,11 @@ class HomeworkTab(ctk.CTkTabview, ABC):
         today = date.today()
         # titleFont = ctk.CTkFont(family='Arial', size=16, weight='bold')
         # bodyFont = ctk.CTkFont(family='Arial', size=12)
-        futureTasks = []
+        future_tasks = []
         for task in sorted_tasks:
             due_date = datetime.strptime(task["due_date"], "%Y-%m-%dT%H:%M:%S").date()
 
-            #customise task details
+            # customise task details
             i = 1
             breakOn = 80
             details = task["details"]
@@ -331,19 +342,24 @@ class HomeworkTab(ctk.CTkTabview, ABC):
                 label.pack(padx=20, pady=1)
                 label = ctk.CTkLabel(self.tab("Homework"), text=("Due: " + task["due_date"]))
                 label.pack(padx=20, pady=1)
-                futureTasks.append(task)
+                future_tasks.append(task)
+
 
 class timetable_and_homework_GUI(ctk.CTk, ABC):
+    """
+    GUI for displaying timetable and homework in a customtkinter GUI.
+    """
     def __init__(self, lessonData: list[dict], homeworkData: list[dict]):
         super().__init__()
 
         self.title("Timetable and Homework")
-        self.tabview = TimetableTab(root=self, data=lessonData)
+        self.tabview = timetable_tab(root=self, data=lessonData)
         self.tabview.grid(row=0, column=0, padx=20, pady=20)
-        self.tabview = HomeworkTab(root=self, homeworkData=homeworkData)
+        self.tabview = homework_tab(root=self, homeworkData=homeworkData)
         self.tabview.grid(row=0, column=1, padx=20, pady=20)
 
-class GoogleCalendarSession(object):
+
+class google_calendar_session(object):
 
     def __init__(self):
         self.prefix = "[Google Calendar]"
@@ -371,7 +387,8 @@ class GoogleCalendarSession(object):
 
             self.service = build('calendar', 'v3', credentials=creds)
         else:
-            raise Exception("'credentials.json' cannot not found. This can be fetched from https://console.cloud.google.com/apis/credentials. A guide for generating these credentials can be found at https://karenapp.io/articles/how-to-automate-google-calendar-with-python-using-the-calendar-api/")
+            raise Exception(
+                "'credentials.json' cannot not found. This can be fetched from https://console.cloud.google.com/apis/credentials. A guide for generating these credentials can be found at https://karenapp.io/articles/how-to-automate-google-calendar-with-python-using-the-calendar-api/")
 
     def event_exists(self, eventBody: dict) -> bool:
         # eventBody example: eventBody = {"summary": title,"description": description,"colorId": DefineColour(title),"start": {"dateTime": start, "timeZone": 'Greenwich'},"end": {"dateTime": end, "timeZone": 'Greenwich'}}
@@ -495,12 +512,16 @@ class GoogleCalendarSession(object):
 
         print(f"{self.prefix} Duplicate events removed.")
 
-def mainMenu(G4S=None):
+
+def main_menu(G4S=None):
+    """
+    Main Menu text function, this isn't actually needed, but it can be used for development if GUI is broken.
+    """
     print("\n -------------------- Main Menu -------------------- \n")
     if not G4S:
         __username = input("Username: ")
         __password = getpass()
-        G4S = Go4Schools_Session(__username, __password)
+        G4S = go4schools_session(__username, __password)
 
     choices = {"1": "View Timetable and Homework Details", "2": "Add Current Week's Timetable to Google Calendar",
                "3": "Add Homework to Google Calendar"}
@@ -520,39 +541,40 @@ def mainMenu(G4S=None):
         start_end_choice = input()
         if start_end_choice == "2":
             print("Getting dates from custom dates...")
-            start, end = G4S.get_dates()
+            start, end = G4S.get_dates_with_console_prompt()
         else:
             print("Getting dates from the start and end of current week...")
-            start, end = G4S.StartEnd_OfWeek()
+            start, end = G4S.start_end_of_week()
 
-        lessonData = G4S.GetTimetable(start, end)
+        lessonData = G4S.get_timetable(start, end)
         homeworkData = G4S.GetHomework()
         app = timetable_and_homework_GUI(lessonData, homeworkData)
         app.mainloop()
-    
+
     elif choice in ["2", "3"]:
-        GoogleSession = GoogleCalendarSession()
+        GoogleSession = google_calendar_session()
 
         if choice == "2":
             print("Timetable Viewing Options:\n1) From start to end of current week\n2) Custom start & end dates")
             start_end_choice = input()
             if start_end_choice == "2":
                 print("Getting dates from custom dates...")
-                start, end = G4S.get_dates()
+                start, end = G4S.get_dates_with_console_prompt()
             else:
                 print("Getting dates from the start and end of current week...")
-                start, end = G4S.StartEnd_OfWeek()
-            lessonData = G4S.GetTimetable(start, end)
+                start, end = G4S.start_end_of_week()
+            lessonData = G4S.get_timetable(start, end)
             GoogleSession.create_event_from_lessons(lessonData)
 
         elif choice == "3":
             homeworkData = G4S.GetHomework()
             GoogleSession.CreateEventFromHomework(homeworkData)
 
-    mainMenu(G4S)
+    main_menu(G4S)
+
 
 class GUI(ctk.CTk, ABC):
-    def __init__(self, G4S: Go4Schools_Session = None, GoogleSession: GoogleCalendarSession = None):
+    def __init__(self, G4S: go4schools_session = None, GoogleSession: google_calendar_session = None):
         super().__init__()
 
         self.GoogleSession = GoogleSession
@@ -570,8 +592,8 @@ class GUI(ctk.CTk, ABC):
             self.login_attempts += 1
             __username = self.username_box.get()
             __password = self.password_box.get()
-            if Go4Schools_Session.verify_login_details(__username, __password):
-                self.G4S = Go4Schools_Session(__username, __password)
+            if go4schools_session.verify_login_details(__username, __password):
+                self.G4S = go4schools_session(__username, __password)
                 self.main_menu()
             else:
                 self.is_correct_text.configure(text=f"Incorrect username or password. Attempts: {self.login_attempts}")
@@ -595,7 +617,7 @@ class GUI(ctk.CTk, ABC):
             self.is_correct_text.grid(column=0, row=4, padx=20, pady=20)
 
         if not self.GoogleSession:
-            self.GoogleSession = GoogleCalendarSession()
+            self.GoogleSession = google_calendar_session()
 
     def main_menu(self):
         self.clear_window()
@@ -688,17 +710,17 @@ class GUI(ctk.CTk, ABC):
             suffix = 'th' if 11 <= day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
             return dt.strftime(f"%d{suffix} of %B %Y")
 
-        lessonData = self.G4S.GetTimetable(self.startDate - timedelta(days=1),
-                                           self.endDate)  # not sure why I have to take away a day
-        homeworkData = self.G4S.GetHomework()
+        lesson_data = self.G4S.get_timetable(self.startDate - timedelta(days=1),
+                                            self.endDate)  # not sure why I have to take away a day
+        homework_data = self.G4S.get_homework()
         week_starting_label = ctk.CTkLabel(self, text=f"Week Starting {format_date(self.startDate)}",
                                            font=("Aharoni", 20, "bold"))
         week_starting_label.grid(row=0, column=0, padx=30, pady=30)
         next_week_button = ctk.CTkButton(self, text="View Next Week", command=self.increment_dates)
         next_week_button.grid(row=0, column=1, pady=20)
-        tabview = TimetableTab(root=self, data=lessonData)
+        tabview = timetable_tab(root=self, data=lesson_data)
         tabview.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        tabview = HomeworkTab(root=self, homeworkData=homeworkData)
+        tabview = homework_tab(root=self, homeworkData=homework_data)
         tabview.grid(row=1, column=1, padx=20, pady=20, sticky="ne")
 
     def increment_dates(self):
@@ -735,8 +757,8 @@ class GUI(ctk.CTk, ABC):
         progress_bar.grid(column=0, row=1, padx=20, pady=10)
         progress_bar.set(0)
         # get timetable data
-        self.lessonData = self.G4S.GetTimetable(self.startDate,
-                                                self.endDate)  # list of dictionaries (each one is a lesson)
+        self.lessonData = self.G4S.get_timetable(self.startDate,
+                                                 self.endDate)  # list of dictionaries (each one is a lesson)
 
         button = ctk.CTkButton(self, text="Add to Calendar", command=add_lesson_to_calendar)
         button.grid(column=0, row=2, padx=20, pady=15)
@@ -769,7 +791,7 @@ class GUI(ctk.CTk, ABC):
         progress_bar.grid(column=0, row=1, padx=20, pady=10)
         progress_bar.set(0)
         # get timetable data
-        self.homeworkData = self.G4S.GetHomework()  # list of dictionaries (each one is a lesson)
+        self.homeworkData = self.G4S.get_homework()  # list of dictionaries (each one is a lesson)
 
         button1 = ctk.CTkButton(self, text="Add to Calendar", command=add_task_to_calendar)
         button1.grid(column=0, row=2, padx=20, pady=10)
