@@ -180,7 +180,7 @@ class go4schools_session(object):
         base_url = "https://api.go4schools.com/web/stars/v1/timetable/student/academic-years/"
         timetable_url = base_url + str(
             datetime.now().year) + "/school-id/" + self.SchoolID + "/user-type/1/student-id/" + self.student_id + \
-            "/from-date/ "
+                        "/from-date/ "
         timetable_url += str(start_date) + "/to-date/" + str(end_date) + "?caching=true"
         response = requests.get(timetable_url, headers=headers)
         print(f"{self.prefix}: Status code from 'api.go4schools.com':", response.status_code)
@@ -206,16 +206,16 @@ class go4schools_session(object):
             "referer": "https://www.go4schools.com/"
         }
         base_url = "https://api.go4schools.com/web/stars/v1/attendance/session/academic-years/"
-        AttendanceURL = base_url + str(
+        attendance_url = base_url + str(
             datetime.now().year) + "/school-id/" + self.SchoolID + "/user-type/1/year-groups/12/student-id/" + \
-            self.student_id + "?caching=false&includeSettings=true"
-        response = requests.get(AttendanceURL, headers=headers)
+                         self.student_id + "?caching=false&includeSettings=true"
+        response = requests.get(attendance_url, headers=headers)
         print("Status code:", response.status_code)
         return response.text
 
     def get_grades(self) -> str:
         """Gets grades using the Go4Schools API"""
-        URL = "https://api.go4schools.com/web/stars/v1/attainment/student-grades/academic-years/" + \
+        url = "https://api.go4schools.com/web/stars/v1/attainment/student-grades/academic-years/" + \
               self.academic_year + "/school-id/" + self.SchoolID + "/user-type/1/year-group/12/student-id/" \
               + self.student_id + "?caching=false&includeSettings=false"
         headers = {
@@ -223,7 +223,7 @@ class go4schools_session(object):
             "origin": "https://www.go4schools.com",
             "referer": "https://www.go4schools.com/"
         }
-        response = requests.get(URL, headers=headers)
+        response = requests.get(url, headers=headers)
         print(f"{self.prefix}: Status code:", response.status_code)
         return response.text
 
@@ -234,21 +234,21 @@ class go4schools_session(object):
             "origin": "https://www.go4schools.com",
             "referer": "https://www.go4schools.com/"
         }
-        URL = "https://api.go4schools.com/web/stars/v1/homework/student/academic-years/" + self.academic_year + \
+        url = "https://api.go4schools.com/web/stars/v1/homework/student/academic-years/" + self.academic_year + \
               "/school-id/" + self.SchoolID + "/user-type/1/student-id/" + self.student_id + \
               "?caching=true&includeSettings=true"
-        response = requests.get(URL, headers=headers)
+        response = requests.get(url, headers=headers)
         homework = loads(response.text)["student_homework"]["homework"]
 
-        futureTasks = []
+        future_tasks = []
         today = datetime.now()
         start_of_week = today - timedelta(days=today.weekday() + 1)
         for task in homework:
             date_str = task["due_date"]
             date_str_as_datetime = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S')
             if date_str_as_datetime >= start_of_week:
-                futureTasks.append(task)
-        return futureTasks
+                future_tasks.append(task)
+        return future_tasks
 
 
 class timetable_tab(ctk.CTkTabview, ABC):
@@ -256,6 +256,7 @@ class timetable_tab(ctk.CTkTabview, ABC):
     Tab to display the users' timetable, in timetable_and_homework_display() class.
     Can only display one week only, it will add multiple days into one tab otherwise.
     """
+
     def __init__(self, root, data: list[dict], **kwargs):
 
         super().__init__(root, **kwargs)
@@ -305,7 +306,8 @@ class homework_tab(ctk.CTkTabview, ABC):
     Tab to display the users' pending homework, in timetable_and_homework_display() class.
     Sorted by due date, with it displaying "today" and "tomorrow" to the corresponding dates.
     """
-    def __init__(self, root: ctk.CTk, homeworkData: list[dict], **kwargs):
+
+    def __init__(self, root: ctk.CTk, homework_data: list[dict], **kwargs):
         super().__init__(root, **kwargs)
 
         def sort_key(homework_task: dict):
@@ -318,7 +320,7 @@ class homework_tab(ctk.CTkTabview, ABC):
                 due_datetime = datetime.strptime(homework_task["due_date"], "%Y-%m-%dT%H:%M:%S")
                 return due_datetime.date()
 
-        sorted_tasks = sorted(homeworkData, key=sort_key)
+        sorted_tasks = sorted(homework_data, key=sort_key)
 
         self.add("Homework")
 
@@ -331,10 +333,10 @@ class homework_tab(ctk.CTkTabview, ABC):
 
             # customise task details
             i = 1
-            breakOn = 80
+            break_on = 80
             details = task["details"]
             while i < len(details):
-                if i % breakOn == 0:
+                if i % break_on == 0:
                     details = details[:i] + "-\n" + details[i:]
 
                 i += 1
@@ -363,13 +365,13 @@ class timetable_and_homework_display(ctk.CTk, ABC):
     GUI for displaying timetable and homework in a customtkinter GUI.
     """
 
-    def __init__(self, lessonData: list[dict], homeworkData: list[dict]):
+    def __init__(self, lesson_data: list[dict], homework_data: list[dict]):
         super().__init__()
 
         self.title("Timetable and Homework")
-        self.tabview = timetable_tab(root=self, data=lessonData)
+        self.tabview = timetable_tab(root=self, data=lesson_data)
         self.tabview.grid(row=0, column=0, padx=20, pady=20)
-        self.tabview = homework_tab(root=self, homeworkData=homeworkData)
+        self.tabview = homework_tab(root=self, homework_data=homework_data)
         self.tabview.grid(row=0, column=1, padx=20, pady=20)
 
 
@@ -379,12 +381,13 @@ class google_calendar_session(object):
     Not really designed to be used externally, the formatting is heavily balanced towards usage in this specific
     project, therefore the syntax and formatting of parameters may be very strange in other circumstances.
     """
+
     def __init__(self):
         self.prefix = "[Google Calendar]"
         self.service = None
         if exists("credentials.json"):
-            SCOPES = ['https://www.googleapis.com/auth/calendar']
-            CREDENTIALS_FILE = 'credentials.json'
+            scopes = ['https://www.googleapis.com/auth/calendar']
+            credentials_file = 'credentials.json'
             creds = None
             # The file token.pickle stores the user's access and refresh tokens, and is
             # created automatically when the authorization flow completes for the first
@@ -397,7 +400,7 @@ class google_calendar_session(object):
                 if creds and creds.expired and creds.refresh_token:
                     creds.refresh(Request())
                 else:
-                    flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+                    flow = InstalledAppFlow.from_client_secrets_file(credentials_file, scopes)
                     creds = flow.run_local_server(port=0)
                 # Save the credentials for the next run
                 with open('token.pickle', 'wb') as token:
@@ -411,7 +414,7 @@ class google_calendar_session(object):
                 "generating these credentials can be found at "
                 "https://karenapp.io/articles/how-to-automate-google-calendar-with-python-using-the-calendar-api/")
 
-    def event_exists(self, eventBody: dict) -> bool:
+    def event_exists(self, event_body: dict) -> bool:
         """
         Checks if an event specified by "eventBody" already exists in the users calendar. This is to prevent duplicates
         when creating events in the users calendar.
@@ -421,11 +424,11 @@ class google_calendar_session(object):
 
         I may sort this out at some point because this hard coding is very poor from me.
         """
-        events_result = self.service.events().list(calendarId='primary', timeMin=eventBody['start']['dateTime'],
-                                                   timeMax=eventBody['end']['dateTime'], singleEvents=True,
+        events_result = self.service.events().list(calendarId='primary', timeMin=event_body['start']['dateTime'],
+                                                   timeMax=event_body['end']['dateTime'], singleEvents=True,
                                                    orderBy='startTime').execute()
         for event in events_result.get("items", []):
-            if event['summary'] == eventBody['summary']:
+            if event['summary'] == event_body['summary']:
                 return True
         return False
 
@@ -435,11 +438,12 @@ class google_calendar_session(object):
         Creates this event in the primary calendar, with a colour corresponding to the first character of the title.
 
         Defaults to Greenwich timezone, unless specified under the time_zone parameter. Check the Google Calendar API
-        documentation for infomation on valid timezones.
+        documentation for information on valid timezones.
 
         This will print a "Created Event" or "Event already exists" correspondingly.
 
         """
+
         def define_colour(event_title: any) -> str:
             """
             Defines colour by the title's first digit. Cycles through 11 possible colours, these correspond to the 11
@@ -454,17 +458,17 @@ class google_calendar_session(object):
         if not time_zone:
             time_zone = "Greenwich"
 
-        eventBody = {"summary": title, "description": description, "colorId": define_colour(title),
-                     "start": {"dateTime": start, "timeZone": time_zone},
-                     "end": {"dateTime": end, "timeZone": time_zone}}
+        event_body = {"summary": title, "description": description, "colorId": define_colour(title),
+                      "start": {"dateTime": start, "timeZone": time_zone},
+                      "end": {"dateTime": end, "timeZone": time_zone}}
 
-        if not self.event_exists(eventBody):
-            self.service.events().insert(calendarId='primary', body=eventBody).execute()
+        if not self.event_exists(event_body):
+            self.service.events().insert(calendarId='primary', body=event_body).execute()
             print(f"{self.prefix}: Created Event  ({title} at {start})")
         else:
             print(f"{self.prefix}: Event already exists  ({title} at {start})")
 
-    def day_event_exists(self, eventBody: dict) -> bool:
+    def day_event_exists(self, event_body: dict) -> bool:
         """
         TLDR: basically the event_exists() method but for full day events
 
@@ -489,7 +493,7 @@ class google_calendar_session(object):
             orderBy='startTime').execute()
         events = events_result.get('items', [])
         for event in events:
-            if event['summary'] == eventBody['summary']:
+            if event['summary'] == event_body['summary']:
                 return True
         return False
 
@@ -612,15 +616,15 @@ class google_calendar_session(object):
         print(f"{self.prefix} Duplicate events removed.")
 
 
-def main_menu(G4S=None):
+def main_menu(g4s=None):
     """
     Main Menu text function, this isn't actually needed, but it can be used for development if GUI is broken.
     """
     print("\n -------------------- Main Menu -------------------- \n")
-    if not G4S:
+    if not g4s:
         __username = input("Username: ")
         __password = getpass()
-        G4S = go4schools_session(__username, __password)
+        g4s = go4schools_session(__username, __password)
 
     choices = {"1": "View Timetable and Homework Details", "2": "Add Current Week's Timetable to Google Calendar",
                "3": "Add Homework to Google Calendar"}
@@ -640,36 +644,36 @@ def main_menu(G4S=None):
         start_end_choice = input()
         if start_end_choice == "2":
             print("Getting dates from custom dates...")
-            start, end = G4S.get_dates_with_console_prompt()
+            start, end = g4s.get_dates_with_console_prompt()
         else:
             print("Getting dates from the start and end of current week...")
-            start, end = G4S.start_end_of_week()
+            start, end = g4s.start_end_of_week()
 
-        lessonData = G4S.get_timetable(start, end)
-        homeworkData = G4S.GetHomework()
-        app = timetable_and_homework_display(lessonData, homeworkData)
+        lesson_data = g4s.get_timetable(start, end)
+        homework_data = g4s.GetHomework()
+        app = timetable_and_homework_display(lesson_data, homework_data)
         app.mainloop()
 
     elif choice in ["2", "3"]:
-        GoogleSession = google_calendar_session()
+        google_session = google_calendar_session()
 
         if choice == "2":
             print("Timetable Viewing Options:\n1) From start to end of current week\n2) Custom start & end dates")
             start_end_choice = input()
             if start_end_choice == "2":
                 print("Getting dates from custom dates...")
-                start, end = G4S.get_dates_with_console_prompt()
+                start, end = g4s.get_dates_with_console_prompt()
             else:
                 print("Getting dates from the start and end of current week...")
-                start, end = G4S.start_end_of_week()
-            lessonData = G4S.get_timetable(start, end)
-            GoogleSession.create_event_from_lessons(lessonData)
+                start, end = g4s.start_end_of_week()
+            lesson_data = g4s.get_timetable(start, end)
+            google_session.create_event_from_lessons(lesson_data)
 
         elif choice == "3":
-            homeworkData = G4S.GetHomework()
-            GoogleSession.create_event_from_homework(homeworkData)
+            homework_data = g4s.GetHomework()
+            google_session.create_event_from_homework(homework_data)
 
-    main_menu(G4S)
+    main_menu(g4s)
 
 
 class GUI(ctk.CTk, ABC):
@@ -682,11 +686,11 @@ class GUI(ctk.CTk, ABC):
     to do multiple things.
     """
 
-    def __init__(self, G4S: go4schools_session = None, GoogleSession: google_calendar_session = None):
+    def __init__(self, g4s: go4schools_session = None, google_session: google_calendar_session = None):
         super().__init__()
 
-        self.GoogleSession = GoogleSession
-        self.G4S = G4S
+        self.GoogleSession = google_session
+        self.G4S = g4s
         self.startDate_textBox = None
         self.endDate_textBox = None
         self.startDate = None
@@ -754,29 +758,29 @@ class GUI(ctk.CTk, ABC):
         def __menu_option_3_command():
             self.add_homework_to_calendar()
 
-        mainText = ctk.CTkLabel(self, text="Main Menu\n\n", font=("Aharoni", 20, "bold", "underline"))
-        mainText.grid(row=0, column=1, padx=40, pady=20)
+        main_text = ctk.CTkLabel(self, text="Main Menu\n\n", font=("Aharoni", 20, "bold", "underline"))
+        main_text.grid(row=0, column=1, padx=40, pady=20)
 
         tab1 = ctk.CTkTabview(self)
         tab1.add(name="View Timetable & Homework Details")
         tab1.grid(row=1, column=0, padx=40, pady=20, sticky="nsew")
-        Option1 = ctk.CTkButton(tab1, text="View Timetable & Homework Details",
+        option1 = ctk.CTkButton(tab1, text="View Timetable & Homework Details",
                                 command=__menu_option_1_command)
-        Option1.grid(row=3, column=0, padx=40, pady=20)
+        option1.grid(row=3, column=0, padx=40, pady=20)
 
         tab2 = ctk.CTkTabview(self)
         tab2.add(name="Add Current Week's Timetable to Google Calendar")
         tab2.grid(row=1, column=1, padx=40, pady=20, sticky="nsew")
-        Option2 = ctk.CTkButton(tab2, text="Add Current Week's Timetable to Google Calendar",
+        option2 = ctk.CTkButton(tab2, text="Add Current Week's Timetable to Google Calendar",
                                 command=__menu_option_2_command)
-        Option2.grid(row=3, column=0, padx=40, pady=20)
+        option2.grid(row=3, column=0, padx=40, pady=20)
 
         tab3 = ctk.CTkTabview(self)
         tab3.add(name="Add Homework to Google Calendar")
         tab3.grid(row=1, column=2, padx=40, pady=20, sticky="nsew")
-        Option3 = ctk.CTkButton(tab3, text="Add Homework to Google Calendar",
+        option3 = ctk.CTkButton(tab3, text="Add Homework to Google Calendar",
                                 command=__menu_option_3_command)
-        Option3.grid(row=3, column=0, padx=40, pady=20)
+        option3.grid(row=3, column=0, padx=40, pady=20)
 
     def clear_window(self):
         """
@@ -790,6 +794,7 @@ class GUI(ctk.CTk, ABC):
         Allows the user to select a date. As this method/window is used multiple times, it utilises a hard coded flag
         system which then redirects the user once the dates have been submitted.
         """
+
         def submit_dates_button():
             """does the actual logic in the date_selector function"""
             startDateStr = self.startDate_textBox.get()
@@ -857,7 +862,7 @@ class GUI(ctk.CTk, ABC):
         next_week_button.grid(row=0, column=1, pady=20)
         tabview = timetable_tab(root=self, data=lesson_data)
         tabview.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        tabview = homework_tab(root=self, homeworkData=homework_data)
+        tabview = homework_tab(root=self, homework_data=homework_data)
         tabview.grid(row=1, column=1, padx=20, pady=20, sticky="ne")
 
     def increment_dates(self):
@@ -877,6 +882,7 @@ class GUI(ctk.CTk, ABC):
         so long, Google has tons of ping in its API to prevent spam or something probably), so get yourself a cuppa
         if your timetable is more than a month.
         """
+
         def add_lesson_to_calendar():
             """
             Adds lesson to Google calendar. I'm not sure that I need the update_progress method, I might just be
@@ -928,6 +934,7 @@ class GUI(ctk.CTk, ABC):
         are left (I'm sorry it takes so long, Google has tons of ping in its API to prevent spam or something
         probably), so get yourself a cuppa if your timetable is more than a month.
         """
+
         def add_task_to_calendar():
             """
             Adds homework to Google calendar. I'm not sure that I need the update_progress method, I might just be

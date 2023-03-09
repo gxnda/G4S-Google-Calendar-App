@@ -1,3 +1,5 @@
+"""Useful functions to use in Go4Schools_API_Access.py"""
+
 from os import system
 from subprocess import check_call
 
